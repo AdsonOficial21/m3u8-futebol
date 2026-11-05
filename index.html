@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adson Tech Sat | Player</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:#08080b; --card:#111116; --card2:#17171e; --line:#24242e;
+    --gold:#d4af37; --gold2:#f5d87a; --txt:#f2f2f4; --mut:#8b8b98; --red:#ff4d4d;
+  }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { max-width:100%; overflow-x:hidden; }
+  body {
+    background:radial-gradient(1200px 500px at 50% -10%, #1b1608 0%, var(--bg) 60%) fixed;
+    color:var(--txt); font-family:'Inter', system-ui, -apple-system, 'Segoe UI', sans-serif;
+    min-height:100vh;
+  }
+
+  /* topo */
+  header {
+    display:flex; align-items:center; justify-content:space-between; gap:12px;
+    padding:14px 22px; border-bottom:1px solid var(--line);
+    background:rgba(8,8,11,.75); backdrop-filter:blur(10px);
+    position:sticky; top:0; z-index:10;
+  }
+  .brand { font-family:'Bebas Neue', Impact, sans-serif; font-size:28px; letter-spacing:2px;
+           background:linear-gradient(90deg,var(--gold),var(--gold2)); -webkit-background-clip:text;
+           background-clip:text; color:transparent; white-space:nowrap; }
+  .brand small { font-family:'Inter',sans-serif; font-size:11px; letter-spacing:1px; color:var(--mut);
+                 -webkit-text-fill-color:var(--mut); margin-left:8px; }
+  .pill { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:600;
+          letter-spacing:1px; padding:5px 10px; border-radius:999px;
+          background:rgba(255,77,77,.12); color:var(--red); border:1px solid rgba(255,77,77,.35); }
+  .pill::before { content:''; width:7px; height:7px; border-radius:50%; background:var(--red);
+                  animation:pulse 1.4s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1; transform:scale(1)} 50%{opacity:.35; transform:scale(.7)} }
+
+  /* layout */
+  .layout { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:20px;
+            max-width:1400px; margin:0 auto; padding:20px; }
+  @media (max-width:980px) { .layout { grid-template-columns:minmax(0,1fr); padding:12px; } }
+
+  /* player */
+  .stage { min-width:0; }
+  .screen { position:relative; aspect-ratio:16/9; background:#000; border-radius:16px; overflow:hidden;
+            border:1px solid var(--line); box-shadow:0 0 0 1px rgba(212,175,55,.08), 0 20px 60px rgba(0,0,0,.6); }
+  video { position:absolute; inset:0; width:100%; height:100%; background:#000; object-fit:contain; }
+  .idle { position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+          justify-content:center; gap:10px; color:var(--mut); text-align:center; padding:20px;
+          background:radial-gradient(circle at 50% 40%, #1a1608, #000 70%); pointer-events:none; }
+  .idle .ico { font-size:54px; color:var(--gold); opacity:.9; }
+  .idle b { font-family:'Bebas Neue',Impact,sans-serif; font-size:26px; letter-spacing:2px; color:var(--txt); font-weight:400; }
+  .screen.on .idle { display:none; }
+
+  .info { display:flex; align-items:center; justify-content:space-between; gap:14px;
+          margin-top:14px; padding:14px 16px; background:var(--card); border:1px solid var(--line);
+          border-radius:14px; }
+  .info .tt { min-width:0; }
+  .info h2 { font-family:'Bebas Neue',Impact,sans-serif; font-weight:400; font-size:26px; letter-spacing:1.5px;
+             white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .info p { font-size:12px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .actions { display:flex; gap:8px; flex-shrink:0; }
+  .btn { border:1px solid var(--line); background:var(--card2); color:var(--txt); padding:9px 14px;
+         border-radius:10px; cursor:pointer; font-size:13px; font-weight:500; transition:.2s; }
+  .btn:hover { border-color:var(--gold); color:var(--gold2); }
+  #msg { margin-top:12px; padding:0; font-size:13px; color:#ffb3b3; word-break:break-word; }
+  #msg:not(:empty) { padding:10px 14px; background:rgba(255,77,77,.08); border:1px solid rgba(255,77,77,.3);
+                     border-radius:10px; }
+
+  /* lista */
+  aside { min-width:0; background:var(--card); border:1px solid var(--line); border-radius:16px;
+          display:flex; flex-direction:column; max-height:calc(100vh - 110px); position:sticky; top:84px; }
+  @media (max-width:980px) { aside { position:static; max-height:none; } }
+  .head { padding:16px 16px 10px; }
+  .head h3 { font-family:'Bebas Neue',Impact,sans-serif; font-weight:400; font-size:22px; letter-spacing:2px;
+             color:var(--gold2); display:flex; justify-content:space-between; align-items:baseline; }
+  .head h3 span { font-family:'Inter',sans-serif; font-size:12px; color:var(--mut); letter-spacing:0; }
+  #busca { width:100%; margin-top:10px; padding:11px 14px; border-radius:10px; border:1px solid var(--line);
+           background:var(--card2); color:var(--txt); font-size:14px; outline:none; }
+  #busca:focus { border-color:var(--gold); }
+  .lista { overflow-y:auto; overflow-x:hidden; padding:6px 10px 12px; display:flex; flex-direction:column; gap:6px; }
+  .lista::-webkit-scrollbar { width:6px; }
+  .lista::-webkit-scrollbar-thumb { background:#2c2c37; border-radius:6px; }
+
+  .item { display:flex; align-items:center; gap:12px; padding:10px 12px; border-radius:12px; cursor:pointer;
+          background:var(--card2); border:1px solid transparent; transition:.15s; min-width:0; position:relative; }
+  .item:hover { border-color:rgba(212,175,55,.5); transform:translateX(2px); }
+  .item.ativo { background:linear-gradient(90deg, rgba(212,175,55,.18), rgba(212,175,55,.04));
+                border-color:rgba(212,175,55,.6); }
+  .av { width:42px; height:42px; flex-shrink:0; border-radius:10px; display:grid; place-items:center;
+        font-family:'Bebas Neue',Impact,sans-serif; font-size:22px; color:#1a1405;
+        background:linear-gradient(135deg,var(--gold),var(--gold2)); }
+  .txt { min-width:0; flex:1; }
+  .txt b { display:block; font-size:14px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .txt small { display:block; font-size:11px; color:var(--mut); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tag { flex-shrink:0; font-size:10px; font-weight:600; letter-spacing:.5px; color:var(--gold2);
+         border:1px solid rgba(212,175,55,.4); padding:3px 7px; border-radius:6px; }
+  .eq { display:none; gap:2px; align-items:flex-end; height:16px; flex-shrink:0; }
+  .item.ativo .eq { display:flex; }
+  .item.ativo .tag { display:none; }
+  .eq i { width:3px; background:var(--gold); border-radius:2px; animation:eq 1s infinite ease-in-out; }
+  .eq i:nth-child(1){ height:40%; animation-delay:0s } .eq i:nth-child(2){ height:90%; animation-delay:.2s }
+  .eq i:nth-child(3){ height:60%; animation-delay:.4s }
+  @keyframes eq { 0%,100%{transform:scaleY(.4)} 50%{transform:scaleY(1)} }
+  .vazio { color:var(--mut); text-align:center; padding:28px 10px; font-size:14px; }
+
+  /* ===== modo TV / controle remoto ===== */
+  .screen.full { position:fixed; inset:0; z-index:100; width:100vw; height:100vh; aspect-ratio:auto;
+                 border:0; border-radius:0; box-shadow:none; cursor:none; }
+  .toast { position:absolute; left:24px; bottom:24px; max-width:70%; padding:12px 20px; border-radius:12px;
+           background:rgba(8,8,11,.82); border:1px solid rgba(212,175,55,.5); color:var(--txt);
+           font-family:'Bebas Neue',Impact,sans-serif; font-size:28px; letter-spacing:1.5px;
+           white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+           opacity:0; transform:translateY(8px); transition:.25s; pointer-events:none; z-index:5; }
+  .toast.vis { opacity:1; transform:none; }
+
+  .item.foco { outline:3px solid var(--gold2); outline-offset:1px; transform:scale(1.02);
+               background:linear-gradient(90deg, rgba(212,175,55,.28), rgba(212,175,55,.08)); }
+  #busca.foco { border-color:var(--gold2); box-shadow:0 0 0 3px rgba(245,216,122,.35); }
+  .btn.foco { border-color:var(--gold2); color:var(--gold2); box-shadow:0 0 0 3px rgba(245,216,122,.4); transform:scale(1.06); }
+
+  .dica { padding:10px 14px; border-top:1px solid var(--line); font-size:11px; color:var(--mut);
+          display:flex; flex-wrap:wrap; gap:6px 14px; justify-content:center; }
+  .dica b { color:var(--gold2); font-weight:600; }
+
+  @media (min-width:1700px) {
+    .layout { max-width:none; grid-template-columns:minmax(0,1fr) 480px; padding:28px; }
+    .txt b { font-size:18px; } .txt small { font-size:13px; } .av { width:54px; height:54px; font-size:26px; }
+    .info h2 { font-size:36px; } .btn { font-size:16px; padding:12px 20px; } #busca { font-size:17px; padding:14px 16px; }
+    .dica { font-size:13px; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">ADSON TECH SAT<small>PLAYER</small></div>
+  <span class="pill">AO VIVO</span>
+</header>
+
+<div class="layout">
+  <main class="stage">
+    <div class="screen" id="screen">
+      <video id="video" controls autoplay playsinline></video>
+      <div class="toast" id="toast"></div>
+      <div class="idle">
+        <div class="ico">&#9654;</div>
+        <b>Escolha um canal</b>
+        <span>Selecione na lista para começar a assistir</span>
+      </div>
+    </div>
+
+    <div class="info">
+      <div class="tt">
+        <h2 id="titulo">Nenhum canal selecionado</h2>
+        <p id="sub">—</p>
+      </div>
+      <div class="actions">
+        <button class="btn" id="btnRecarregar" title="Recarregar canal">Recarregar</button>
+        <button class="btn" id="btnTela" title="Tela cheia">Tela cheia</button>
+      </div>
+    </div>
+    <div id="msg"></div>
+  </main>
+
+  <aside>
+    <div class="head">
+      <h3>Canais <span id="contador">0</span></h3>
+      <input id="busca" placeholder="Buscar canal...">
+    </div>
+    <div class="lista" id="lista"><div class="vazio">Carregando...</div></div>
+    <div class="dica">
+      <span><b>&#9650;&#9660;</b> Canais</span>
+      <span><b>&#9654;</b> Opções</span>
+      <span><b>OK</b> Tela cheia</span>
+      <span><b>VOLTAR</b> Sair</span>
+    </div>
+  </aside>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mpegts.js@1.7.3/dist/mpegts.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<script>
+const firebaseConfig = {
+  apiKey: "AIzaSyCz2n_9x7pkSsuV6S6iWuvLxecdLF3wD-8",
+  authDomain: "m3u8-futebol.firebaseapp.com",
+  databaseURL: "https://m3u8-futebol-default-rtdb.firebaseio.com",
+  projectId: "m3u8-futebol",
+  storageBucket: "m3u8-futebol.firebasestorage.app",
+  messagingSenderId: "613537989895",
+  appId: "1:613537989895:web:fab5b1683c81ccae75b1a2"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+const video = document.getElementById('video');
+const screenEl = document.getElementById('screen');
+const msg = document.getElementById('msg');
+const lista = document.getElementById('lista');
+const busca = document.getElementById('busca');
+const contador = document.getElementById('contador');
+const titulo = document.getElementById('titulo');
+const sub = document.getElementById('sub');
+let hls = null;
+let tsPlayer = null;
+let canais = [];
+let ativo = null;
+
+function hostDe(url) {
+  try { return new URL(url).hostname; } catch (e) { return 'link'; }
+}
+
+function tipoDoLink(url) {
+  const caminho = url.split('?')[0].split('#')[0].toLowerCase();
+  if (caminho.endsWith('.m3u8') || caminho.endsWith('.m3u')) return 'hls';
+  if (caminho.endsWith('.mp4') || caminho.endsWith('.webm')) return 'mp4';
+  if (caminho.endsWith('.flv')) return 'flv';
+  if (caminho.endsWith('.ts')) return 'ts';
+  const ultimo = caminho.split('/').pop();
+  if (ultimo && !ultimo.includes('.')) return 'ts';
+  return 'hls';
+}
+
+function pararTudo() {
+  if (hls) { hls.destroy(); hls = null; }
+  if (tsPlayer) {
+    try { tsPlayer.pause(); tsPlayer.unload(); tsPlayer.detachMediaElement(); tsPlayer.destroy(); } catch (e) {}
+    tsPlayer = null;
+  }
+  video.removeAttribute('src');
+  video.load();
+}
+
+function tocar(canal) {
+  ativo = canal;
+  msg.textContent = '';
+  pararTudo();
+  screenEl.classList.add('on');
+  titulo.textContent = canal.nome;
+  if (isFull) mostrarToast(canal.nome);
+  const url = canal.url;
+  const tipo = tipoDoLink(url);
+  sub.textContent = hostDe(url) + '  •  ' + tipo.toUpperCase();
+
+  if (location.protocol === 'https:' && url.startsWith('http://')) {
+    msg.textContent = 'Aviso: página em HTTPS com link HTTP. O navegador costuma bloquear (mixed content).';
+  }
+
+  if (tipo === 'mp4') {
+    video.src = url;
+  } else if (tipo === 'ts' || tipo === 'flv') {
+    if (window.mpegts && mpegts.isSupported()) {
+      tsPlayer = mpegts.createPlayer({ type: tipo === 'flv' ? 'flv' : 'mpegts', isLive: true, url });
+      tsPlayer.attachMediaElement(video);
+      tsPlayer.on(mpegts.Events.ERROR, (t, d) => {
+        msg.textContent = 'Erro no stream (' + t + ' / ' + d + '). Pode ser CORS, mixed content, codec ou link expirado.';
+      });
+      tsPlayer.load();
+      tsPlayer.play();
+      return render();
+    }
+    msg.textContent = 'Seu navegador não suporta MPEG-TS.';
+  } else if (window.Hls && Hls.isSupported()) {
+    hls = new Hls();
+    hls.loadSource(url);
+    hls.attachMedia(video);
+    hls.on(Hls.Events.ERROR, (e, data) => {
+      if (data.fatal) msg.textContent = 'Erro ao carregar o stream (' + data.type + '). Pode ser CORS, mixed content ou codec.';
+    });
+  } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
+    video.src = url;
+  } else {
+    msg.textContent = 'Seu navegador não suporta HLS.';
+  }
+  video.play().catch(() => {});
+  render();
+}
+
+// ===== estado de navegação =====
+let visiveis = [];
+let zona = 'lista';   // 'lista' ou 'acoes'
+let idx = 0;          // posição na lista (-1 = campo de busca)
+let acaoIdx = 0;
+let isFull = false;
+let toastTimer = null;
+const toast = document.getElementById('toast');
+const btnRecarregar = document.getElementById('btnRecarregar');
+const btnTela = document.getElementById('btnTela');
+const botoes = [btnRecarregar, btnTela];
+
+function mostrarToast(texto) {
+  toast.textContent = texto;
+  toast.classList.add('vis');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => toast.classList.remove('vis'), 2800);
+}
+
+function atualizarFoco() {
+  const itens = lista.querySelectorAll('.item');
+  itens.forEach((el, i) => el.classList.toggle('foco', zona === 'lista' && i === idx));
+  busca.classList.toggle('foco', zona === 'lista' && idx === -1);
+  botoes.forEach((b, i) => b.classList.toggle('foco', zona === 'acoes' && i === acaoIdx));
+  const alvo = zona === 'lista' ? (idx >= 0 ? itens[idx] : busca) : botoes[acaoIdx];
+  if (alvo && alvo.scrollIntoView) alvo.scrollIntoView({ block: 'nearest' });
+}
+
+function render() {
+  const termo = busca.value.trim().toLowerCase();
+  visiveis = canais.filter(c => (c.nome || '').toLowerCase().includes(termo));
+  contador.textContent = visiveis.length;
+  if (idx >= visiveis.length) idx = visiveis.length - 1;
+  if (idx < -1) idx = -1;
+  lista.innerHTML = '';
+  if (!visiveis.length) {
+    const v = document.createElement('div');
+    v.className = 'vazio';
+    v.textContent = canais.length ? 'Nenhum canal encontrado.' : 'Nenhum canal cadastrado ainda.';
+    lista.appendChild(v);
+    return atualizarFoco();
+  }
+  visiveis.forEach((c, i) => {
+    const el = document.createElement('div');
+    el.className = 'item' + (ativo && c.id === ativo.id ? ' ativo' : '');
+
+    const av = document.createElement('div');
+    av.className = 'av';
+    av.textContent = (c.nome || '?').trim().charAt(0).toUpperCase();
+
+    const txt = document.createElement('div');
+    txt.className = 'txt';
+    const b = document.createElement('b');
+    b.textContent = c.nome;
+    const s = document.createElement('small');
+    s.textContent = hostDe(c.url);
+    txt.append(b, s);
+
+    const tag = document.createElement('span');
+    tag.className = 'tag';
+    tag.textContent = tipoDoLink(c.url).toUpperCase();
+
+    const eq = document.createElement('span');
+    eq.className = 'eq';
+    eq.innerHTML = '<i></i><i></i><i></i>';
+
+    el.append(av, txt, tag, eq);
+    // clique (ou OK do controle em modo mouse) = mesmo comportamento do OK
+    el.onclick = () => { zona = 'lista'; idx = i; abrirCanal(c); atualizarFoco(); };
+    lista.appendChild(el);
+  });
+  atualizarFoco();
+}
+
+// ===== tela cheia =====
+function entrarFull() {
+  if (isFull || !ativo) return;
+  isFull = true;
+  screenEl.classList.add('full');
+  video.controls = false;
+  try {
+    const req = screenEl.requestFullscreen || screenEl.webkitRequestFullscreen;
+    if (req) { const r = req.call(screenEl); if (r && r.catch) r.catch(() => {}); }
+  } catch (e) {}
+  try { history.pushState({ full: 1 }, ''); } catch (e) {}
+  mostrarToast(ativo.nome);
+}
+
+function limparFull() {
+  isFull = false;
+  screenEl.classList.remove('full');
+  video.controls = true;
+  toast.classList.remove('vis');
+  if (document.fullscreenElement && document.exitFullscreen) document.exitFullscreen().catch(() => {});
+}
+
+function sairFull() {
+  if (!isFull) return;
+  limparFull();
+  if (history.state && history.state.full) history.back();
+}
+
+// botão "voltar" do navegador/TV box
+window.addEventListener('popstate', () => { if (isFull) limparFull(); });
+// saiu da tela cheia nativa por conta própria
+document.addEventListener('fullscreenchange', () => { if (!document.fullscreenElement && isFull) sairFull(); });
+// clique na tela durante a tela cheia = OK de novo
+screenEl.addEventListener('click', () => { if (isFull) sairFull(); });
+
+function abrirCanal(c) {
+  if (!ativo || ativo.id !== c.id) tocar(c);
+  entrarFull();
+}
+
+function zap(d) {
+  if (!visiveis.length) return;
+  let i = visiveis.findIndex(c => ativo && c.id === ativo.id);
+  i = i < 0 ? 0 : (i + d + visiveis.length) % visiveis.length;
+  idx = i;
+  tocar(visiveis[i]);
+}
+
+// ===== controle remoto / teclado =====
+document.addEventListener('keydown', e => {
+  const k = e.key, code = e.keyCode;
+  const digitando = document.activeElement === busca;
+  const ehVoltar = k === 'Escape' || k === 'BrowserBack' || k === 'GoBack' || k === 'XF86Back' ||
+                   code === 27 || code === 4 || code === 10009 || code === 461 ||
+                   (k === 'Backspace' && !digitando);
+
+  // digitando na busca: setas e texto funcionam normal
+  if (digitando) {
+    if (ehVoltar) { busca.blur(); e.preventDefault(); }
+    else if (k === 'ArrowDown' || k === 'Enter') {
+      busca.blur(); idx = visiveis.length ? 0 : -1; atualizarFoco(); e.preventDefault();
+    }
+    return;
+  }
+
+  // VOLTAR
+  if (ehVoltar) {
+    e.preventDefault();
+    if (isFull) sairFull();
+    else if (zona === 'acoes') { zona = 'lista'; atualizarFoco(); }
+    return;
+  }
+
+  // OK
+  if (k === 'Enter' || k === 'Select' || code === 13 || code === 23) {
+    e.preventDefault();
+    if (isFull) return sairFull();
+    if (zona === 'acoes') return botoes[acaoIdx].click();
+    if (idx === -1) { busca.focus(); return; }
+    if (visiveis[idx]) abrirCanal(visiveis[idx]);
+    return;
+  }
+
+  const seta = { ArrowUp:'cima', ArrowDown:'baixo', ArrowLeft:'esq', ArrowRight:'dir' }[k] ||
+               { 38:'cima', 40:'baixo', 37:'esq', 39:'dir' }[code];
+  if (!seta) return;
+  e.preventDefault();
+
+  // em tela cheia, cima/baixo troca de canal
+  if (isFull) {
+    if (seta === 'cima') zap(-1);
+    else if (seta === 'baixo') zap(1);
+    return;
+  }
+
+  if (zona === 'lista') {
+    if (seta === 'baixo') { if (idx < visiveis.length - 1) idx++; }
+    else if (seta === 'cima') { if (idx > -1) idx--; }
+    else if (seta === 'dir') { zona = 'acoes'; acaoIdx = 0; }
+  } else {
+    if (seta === 'esq') { if (acaoIdx > 0) acaoIdx--; else zona = 'lista'; }
+    else if (seta === 'dir') { if (acaoIdx < botoes.length - 1) acaoIdx++; }
+    else if (seta === 'baixo') { zona = 'lista'; }
+  }
+  atualizarFoco();
+});
+
+busca.addEventListener('input', () => { idx = visiveis.length ? 0 : -1; render(); });
+
+btnRecarregar.onclick = () => { if (ativo) tocar(ativo); };
+btnTela.onclick = () => { if (ativo) entrarFull(); else mostrarToast('Escolha um canal primeiro'); };
+
+// Atualiza em tempo real: quando você adiciona no admin, aparece aqui sozinho
+db.ref('canais').on('value', snap => {
+  const dados = snap.val() || {};
+  canais = Object.entries(dados)
+    .map(([id, c]) => ({ id, ...c }))
+    .sort((a, b) => (b.criadoEm || 0) - (a.criadoEm || 0));
+  render();
+}, err => {
+  lista.innerHTML = '';
+  const v = document.createElement('div');
+  v.className = 'vazio';
+  v.textContent = 'Erro ao carregar: ' + err.message;
+  lista.appendChild(v);
+});
+</script>
+</body>
+</html>
