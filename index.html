@@ -20,24 +20,13 @@
   .sub { text-align:center; color:var(--mut); font-size:clamp(14px, 1.6vw, 22px); margin-bottom:4vh; }
   #lista { max-width:1400px; margin:0 auto; display:grid; gap:20px;
            grid-template-columns:repeat(auto-fill, minmax(clamp(200px, 22vw, 320px), 1fr)); }
-  .canal { padding:clamp(20px, 3.5vw, 44px) 18px; border-radius:16px; border:3px solid var(--line);
+  .canal { display:block; text-decoration:none; padding:clamp(20px, 3.5vw, 44px) 18px; border-radius:16px; border:3px solid var(--line);
            background:var(--card); color:var(--txt); font-size:clamp(16px, 1.9vw, 28px); font-weight:600;
            cursor:pointer; text-align:center; transition:transform .12s, border-color .12s, background .12s; }
   .canal::before { content:'▶'; display:block; color:var(--gold); font-size:1.1em; margin-bottom:10px; }
   .canal:hover, .canal:focus { border-color:var(--gold); background:#221d0b; transform:scale(1.06);
                                box-shadow:0 0 0 4px rgba(212,175,55,.35); outline:none; }
   #msg { text-align:center; color:var(--mut); padding:40px 10px; font-size:clamp(16px, 1.8vw, 24px); }
-
-  /* tela do player */
-  #player { position:fixed; inset:0; z-index:10; background:#000; display:none; }
-  #player.ativo { display:block; }
-  iframe { position:absolute; inset:0; width:100%; height:100%; border:0; background:#000; }
-  #voltar { position:absolute; top:calc(10px + env(safe-area-inset-top, 0px)); left:10px; z-index:20;
-            padding:12px 20px; border-radius:999px; border:2px solid rgba(255,255,255,.3);
-            background:rgba(0,0,0,.6); color:#fff; font-size:clamp(14px, 1.5vw, 20px); font-weight:600; cursor:pointer;
-            opacity:.4; transition:opacity .2s; }
-  #voltar:hover, #voltar:focus { opacity:1; border-color:var(--gold); background:var(--gold); color:#000;
-                                 box-shadow:0 0 0 4px rgba(212,175,55,.4); outline:none; }
 </style>
 </head>
 <body>
@@ -48,10 +37,6 @@
   <div id="msg">Carregando canais...</div>
   <div id="lista"></div>
 </main>
-
-<section id="player">
-  <button id="voltar">← Canais</button>
-</section>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
@@ -68,69 +53,12 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-const home = document.getElementById('home');
 const listaEl = document.getElementById('lista');
 const msg = document.getElementById('msg');
-const player = document.getElementById('player');
-let tela = null;   // iframe do canal (criado a cada abertura)
-let semPop = false;
-const voltarBtn = document.getElementById('voltar');
 
 let embeds = [];
-let atualId = null;     // canal aberto (null = está na lista)
 let focoId = null;      // último canal em foco na lista
-
-/* ---------- abrir / fechar canal ---------- */
-function criarTela(url) {
-  const f = document.createElement('iframe');
-  f.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
-  f.allowFullscreen = true;
-  f.referrerPolicy = 'no-referrer-when-downgrade';
-  f.setAttribute('scrolling', 'no');
-  f.addEventListener('load', () => { if (atualId) devolverFoco(300); });
-  f.src = url;
-  player.appendChild(f);
-  return f;
-}
-
-function abrir(item) {
-  atualId = item.id;
-  focoId = item.id;
-  try { history.pushState({ player: 1 }, ''); } catch {}   // botão Voltar da TV fecha o canal
-  tela = criarTela(item.url);
-  player.classList.add('ativo');
-  home.style.display = 'none';
-  voltarBtn.focus();
-}
-
-function fechar() {
-  atualId = null;
-  if (tela) { tela.remove(); tela = null; }   // remove o iframe: para o vídeo e apaga o histórico dele
-  player.classList.remove('ativo');
-  home.style.display = '';
-  focarCanal(focoId);
-}
-
-function voltar() {
-  if (!atualId) return;
-  const nosso = history.state && history.state.player;
-  fechar();                                   // fecha na hora, com um clique só
-  if (nosso) { semPop = true; history.back(); }   // limpa a entrada criada no histórico
-}
-
-window.addEventListener('popstate', () => {
-  if (semPop) { semPop = false; return; }
-  if (atualId) fechar();                      // Voltar do navegador/TV
-});
-
-/* Mantém o foco do controle no botão Voltar enquanto o canal está aberto.
-   Se o foco cair dentro do player (clique no volume, por exemplo), o botão o recupera
-   logo depois, para as setas e o OK voltarem a funcionar. */
-function devolverFoco(atraso) {
-  setTimeout(() => { if (atualId && document.activeElement !== voltarBtn) voltarBtn.focus(); }, atraso);
-}
-window.addEventListener('blur', () => { if (atualId && tela && document.activeElement === tela) devolverFoco(1500); });
-voltarBtn.onclick = voltar;
+try { focoId = sessionStorage.getItem('focoId'); } catch {}   // lembra o canal ao voltar da página dele
 
 /* ---------- foco na lista ---------- */
 function cards() { return Array.from(listaEl.querySelectorAll('.canal')); }
@@ -172,18 +100,8 @@ function mover(dir) {
   }
 }
 
-const TECLAS_VOLTAR = new Set(['Escape', 'Backspace', 'BrowserBack', 'GoBack']);
-const CODIGOS_VOLTAR = new Set([4, 27, 8, 10009, 461]);   // Android TV, Esc, Backspace, Tizen, webOS
-
+// setas movem o foco (OK/Enter abre o link do canal em foco)
 document.addEventListener('keydown', e => {
-  // dentro do canal: botão Voltar do controle fecha
-  if (atualId) {
-    if (TECLAS_VOLTAR.has(e.key) || CODIGOS_VOLTAR.has(e.keyCode)) { e.preventDefault(); voltar(); return; }
-    // qualquer seta leva o foco até o botão Voltar; OK (Enter) nele fecha o canal
-    if (e.key.startsWith('Arrow') && document.activeElement !== voltarBtn) { e.preventDefault(); voltarBtn.focus(); }
-    return;
-  }
-  // na lista: setas movem o foco (OK/Enter clica no botão em foco)
   const mapa = { ArrowUp:'up', ArrowDown:'down', ArrowLeft:'left', ArrowRight:'right' };
   const dir = mapa[e.key];
   if (dir) { e.preventDefault(); mover(dir); }
@@ -194,25 +112,24 @@ function desenhar() {
   const tinhaFoco = listaEl.contains(document.activeElement);
   listaEl.innerHTML = '';
   embeds.forEach(e => {
-    const b = document.createElement('button');
-    b.className = 'canal';
-    b.dataset.id = e.id;
-    b.textContent = e.nome;
-    b.onfocus = () => { focoId = e.id; };
-    b.onclick = () => abrir(e);
-    listaEl.appendChild(b);
+    const a = document.createElement('a');
+    a.className = 'canal';
+    a.dataset.id = e.id;
+    a.href = e.url;               // vai direto para o link do canal
+    a.textContent = e.nome;
+    a.onfocus = () => { focoId = e.id; };
+    a.onclick = () => { try { sessionStorage.setItem('focoId', e.id); } catch {} };
+    listaEl.appendChild(a);
   });
-  if (!atualId && (tinhaFoco || !document.activeElement || document.activeElement === document.body)) focarCanal(focoId);
+  if (tinhaFoco || !document.activeElement || document.activeElement === document.body) focarCanal(focoId);
 }
 
 db.ref('embeds').on('value', snap => {
   const dados = snap.val() || {};
   embeds = Object.entries(dados)
     .map(([id, c]) => ({ id, nome: c.nome || 'Canal', url: c.url, criadoEm: c.criadoEm || 0 }))
-    .filter(e => /^https:\/\//i.test(e.url || ''))
+    .filter(e => /^https?:\/\//i.test(e.url || ''))
     .sort((a, b) => a.criadoEm - b.criadoEm);
-
-  if (atualId && !embeds.some(e => e.id === atualId)) voltar();
 
   msg.style.display = embeds.length ? 'none' : '';
   if (!embeds.length) msg.textContent = 'Nenhum canal cadastrado ainda.';
