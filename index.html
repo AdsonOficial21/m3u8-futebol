@@ -51,11 +51,6 @@
 
 <section id="player">
   <button id="voltar">← Canais</button>
-  <iframe id="tela"
-    allow="autoplay; fullscreen; encrypted-media; picture-in-picture"
-    allowfullscreen
-    referrerpolicy="no-referrer-when-downgrade"
-    scrolling="no"></iframe>
 </section>
 
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
@@ -77,7 +72,8 @@ const home = document.getElementById('home');
 const listaEl = document.getElementById('lista');
 const msg = document.getElementById('msg');
 const player = document.getElementById('player');
-const tela = document.getElementById('tela');
+let tela = null;   // iframe do canal (criado a cada abertura)
+let semPop = false;
 const voltarBtn = document.getElementById('voltar');
 
 let embeds = [];
@@ -85,29 +81,47 @@ let atualId = null;     // canal aberto (null = está na lista)
 let focoId = null;      // último canal em foco na lista
 
 /* ---------- abrir / fechar canal ---------- */
+function criarTela(url) {
+  const f = document.createElement('iframe');
+  f.allow = 'autoplay; fullscreen; encrypted-media; picture-in-picture';
+  f.allowFullscreen = true;
+  f.referrerPolicy = 'no-referrer-when-downgrade';
+  f.setAttribute('scrolling', 'no');
+  f.addEventListener('load', () => { if (atualId) devolverFoco(300); });
+  f.src = url;
+  player.appendChild(f);
+  return f;
+}
+
 function abrir(item) {
   atualId = item.id;
   focoId = item.id;
-  tela.src = item.url;
+  try { history.pushState({ player: 1 }, ''); } catch {}   // botão Voltar da TV fecha o canal
+  tela = criarTela(item.url);
   player.classList.add('ativo');
   home.style.display = 'none';
-  try { history.pushState({ player: 1 }, ''); } catch {}   // botão Voltar da TV fecha o canal
   voltarBtn.focus();
 }
 
 function fechar() {
   atualId = null;
-  tela.removeAttribute('src');   // para o vídeo
+  if (tela) { tela.remove(); tela = null; }   // remove o iframe: para o vídeo e apaga o histórico dele
   player.classList.remove('ativo');
   home.style.display = '';
   focarCanal(focoId);
 }
 
 function voltar() {
-  if (history.state && history.state.player) history.back();   // dispara o popstate
-  else if (atualId) fechar();
+  if (!atualId) return;
+  const nosso = history.state && history.state.player;
+  fechar();                                   // fecha na hora, com um clique só
+  if (nosso) { semPop = true; history.back(); }   // limpa a entrada criada no histórico
 }
-window.addEventListener('popstate', () => { if (atualId) fechar(); });
+
+window.addEventListener('popstate', () => {
+  if (semPop) { semPop = false; return; }
+  if (atualId) fechar();                      // Voltar do navegador/TV
+});
 
 /* Mantém o foco do controle no botão Voltar enquanto o canal está aberto.
    Se o foco cair dentro do player (clique no volume, por exemplo), o botão o recupera
@@ -115,8 +129,7 @@ window.addEventListener('popstate', () => { if (atualId) fechar(); });
 function devolverFoco(atraso) {
   setTimeout(() => { if (atualId && document.activeElement !== voltarBtn) voltarBtn.focus(); }, atraso);
 }
-tela.addEventListener('load', () => { if (atualId) devolverFoco(300); });
-window.addEventListener('blur', () => { if (atualId && document.activeElement === tela) devolverFoco(1500); });
+window.addEventListener('blur', () => { if (atualId && tela && document.activeElement === tela) devolverFoco(1500); });
 voltarBtn.onclick = voltar;
 
 /* ---------- foco na lista ---------- */
